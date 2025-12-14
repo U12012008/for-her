@@ -8,127 +8,90 @@
     margin: 0;
     padding: 0;
     overflow: hidden;
-    background: #ffe6f0;
+    background: radial-gradient(circle, #ffe6f0, #ffb6c1);
+    cursor: none;
   }
   canvas {
-    position: absolute;
-    top: 0;
-    left: 0;
-  }
-  video {
-    display: none;
+    display: block;
   }
 </style>
 </head>
 <body>
 
-<video id="video" autoplay playsinline muted></video>
 <canvas id="canvas"></canvas>
-
-<script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.11.1/hands.js"></script>
 
 <script>
 /* ================= BASIC SETUP ================= */
-const video = document.getElementById("video");
 const canvas = document.getElementById("canvas");
 const ctx = canvas.getContext("2d");
 
-canvas.width = window.innerWidth;
-canvas.height = window.innerHeight;
+function resize() {
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+}
+window.addEventListener("resize", resize);
+resize();
+
+/* ================= MOUSE STATE ================= */
+let mouse = { x: canvas.width / 2, y: canvas.height / 2 };
+let mode = "free";
+
+document.addEventListener("mousemove", e => {
+  mouse.x = e.clientX;
+  mouse.y = e.clientY;
+});
+
+document.addEventListener("mousedown", e => {
+  if (e.button === 0) mode = "heart";   // left click
+  if (e.button === 2) mode = "love";    // right click
+});
+
+document.addEventListener("mouseup", () => mode = "free");
+
+document.addEventListener("dblclick", () => {
+  mode = "scatter";
+  setTimeout(() => mode = "free", 600);
+});
+
+document.addEventListener("contextmenu", e => e.preventDefault());
 
 /* ================= PARTICLES ================= */
+const COUNT = 400;
 const particles = [];
-const COUNT = 350;
 
 for (let i = 0; i < COUNT; i++) {
   particles.push({
     x: Math.random() * canvas.width,
     y: Math.random() * canvas.height,
-    vx: (Math.random() - 0.5) * 1.5,
-    vy: (Math.random() - 0.5) * 1.5,
+    vx: (Math.random() - 0.5) * 3,
+    vy: (Math.random() - 0.5) * 3,
     r: Math.random() * 2 + 1
   });
 }
-
-/* ================= MEDIAPIPE ================= */
-const hands = new Hands({
-  locateFile: (file) =>
-    `https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.11.1/${file}`
-});
-
-hands.setOptions({
-  maxNumHands: 1,
-  modelComplexity: 0, // 🔥 LITE MODEL (IMPORTANT)
-  minDetectionConfidence: 0.6,
-  minTrackingConfidence: 0.6
-});
-
-let gesture = null;
-
-hands.onResults((res) => {
-  if (!res.multiHandLandmarks) {
-    gesture = null;
-    return;
-  }
-
-  const l = res.multiHandLandmarks[0];
-
-  const open =
-    l[8].y < l[6].y &&
-    l[12].y < l[10].y &&
-    l[16].y < l[14].y &&
-    l[20].y < l[18].y;
-
-  const fist =
-    l[8].y > l[6].y &&
-    l[12].y > l[10].y &&
-    l[16].y > l[14].y &&
-    l[20].y > l[18].y;
-
-  const point =
-    l[8].y < l[6].y &&
-    l[12].y > l[10].y &&
-    l[16].y > l[14].y &&
-    l[20].y > l[18].y;
-
-  if (open) gesture = "open";
-  else if (fist) gesture = "fist";
-  else if (point) gesture = "point";
-  else gesture = null;
-});
-
-/* ================= CAMERA ================= */
-async function startCamera() {
-  const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-  video.srcObject = stream;
-  await video.play();
-
-  async function loop() {
-    await hands.send({ image: video });
-    requestAnimationFrame(loop);
-  }
-  loop();
-}
-startCamera();
 
 /* ================= ANIMATION ================= */
 function animate() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
   particles.forEach((p, i) => {
-    if (gesture === "open") {
+
+    if (mode === "heart") {
       const t = i / COUNT * Math.PI * 2;
-      p.x = canvas.width / 2 + 120 * Math.sin(t) ** 3;
+      p.x = canvas.width / 2 + 140 * Math.sin(t) ** 3;
       p.y = canvas.height / 2 -
-            80 * (Math.cos(t) - Math.cos(2*t)/2);
+            100 * (Math.cos(t) - Math.cos(2 * t) / 2);
     }
-    else if (gesture === "fist") {
-      p.x += (canvas.width/2 - p.x) * 0.05;
-      p.y += (canvas.height/2 - p.y) * 0.05;
+    else if (mode === "love") {
+      p.x += (canvas.width / 2 - p.x) * 0.08;
+      p.y += (canvas.height / 2 - p.y) * 0.08;
+    }
+    else if (mode === "scatter") {
+      p.x += p.vx * 4;
+      p.y += p.vy * 4;
     }
     else {
-      p.x += p.vx;
-      p.y += p.vy;
+      p.x += (mouse.x - p.x) * 0.02 + p.vx * 0.3;
+      p.y += (mouse.y - p.y) * 0.02 + p.vy * 0.3;
     }
 
     if (p.x < 0) p.x = canvas.width;
@@ -142,26 +105,30 @@ function animate() {
     ctx.fill();
   });
 
-  if (gesture === "open") {
-    ctx.fillStyle = "red";
-    ctx.font = "50px cursive";
+  if (mode === "heart") {
+    ctx.fillStyle = "crimson";
+    ctx.font = "48px cursive";
     ctx.textAlign = "center";
-    ctx.fillText("Khushi 💖", canvas.width/2, canvas.height/2 + 100);
+    ctx.fillText("Khushi 💖", canvas.width / 2, canvas.height / 2 + 130);
   }
 
-  if (gesture === "fist") {
-    ctx.fillStyle = "red";
+  if (mode === "love") {
+    ctx.fillStyle = "crimson";
     ctx.font = "60px cursive";
     ctx.textAlign = "center";
-    ctx.fillText("I LOVE YOU ❤️", canvas.width/2, canvas.height/2);
+    ctx.fillText("I LOVE YOU ❤️", canvas.width / 2, canvas.height / 2);
   }
 
   requestAnimationFrame(animate);
 }
+
 animate();
 </script>
+
 </body>
 </html>
+
+
 
 
 
