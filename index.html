@@ -93,9 +93,16 @@ animate();
 const video = document.getElementById("video");
 
 const hands = new Hands({
-  locateFile: file =>
-    `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
+  locateFile: (file) => {
+    // Official stable CDN with version
+    return `https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.11.1/${file}`;
+  },
+  modelComplexity: 0,           // lite model for browser
+  maxNumHands: 1,               // track only one hand
+  minDetectionConfidence: 0.7,
+  minTrackingConfidence: 0.7
 });
+
 
 hands.setOptions({
   maxNumHands: 1,
@@ -184,4 +191,5 @@ camera.start();
 </script>
 </body>
 </html>
+
 
