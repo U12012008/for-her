@@ -1,195 +1,163 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<title>For Khushi ❤️</title>
-
-<script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
-
-<style>
-  body {
-    margin: 0;
-    background: black;
-    overflow: hidden;
-  }
-  canvas {
-    display: block;
-  }
-</style>
+  <meta charset="UTF-8">
+  <title>For Khushi 💖</title>
+  <style>
+    body, html {
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      background: #ffe6f0;
+    }
+    canvas {
+      display: block;
+    }
+    #video {
+      display: none;
+    }
+  </style>
 </head>
-
 <body>
+  <video id="video" autoplay></video>
+  <canvas id="canvas"></canvas>
 
-<video id="video" autoplay playsinline style="display:none"></video>
-<canvas id="canvas"></canvas>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.11.1/hands.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils@0.11.1/drawing_utils.js"></script>
 
-<script>
-/* ========== CANVAS ========== */
-const canvas = document.getElementById("canvas");
-const ctx = canvas.getContext("2d");
-canvas.width = window.innerWidth;
-canvas.height = window.innerHeight;
+  <script>
+    const video = document.getElementById("video");
+    const canvas = document.getElementById("canvas");
+    const ctx = canvas.getContext("2d");
 
-/* ========== PARTICLES ========== */
-const particles = [];
-const COUNT = 800;
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
 
-class Particle {
-  constructor() {
-    this.x = Math.random() * canvas.width;
-    this.y = Math.random() * canvas.height;
-    this.tx = Math.random() * canvas.width;
-    this.ty = Math.random() * canvas.height;
-    this.vx = 0;
-    this.vy = 0;
-  }
+    // Particle system
+    const particles = [];
+    const numParticles = 300;
 
-  update() {
-    this.vx += (this.tx - this.x) * 0.005;
-    this.vy += (this.ty - this.y) * 0.005;
-    this.vx *= 0.9;
-    this.vy *= 0.9;
-    this.x += this.vx;
-    this.y += this.vy;
-  }
-
-  draw() {
-    ctx.fillStyle = "#ff6fae";
-    ctx.beginPath();
-    ctx.arc(this.x, this.y, 2, 0, Math.PI * 2);
-    ctx.fill();
-  }
-}
-
-for (let i = 0; i < COUNT; i++) {
-  particles.push(new Particle());
-}
-
-/* ========== DEFAULT MOTION (CRITICAL FIX) ========== */
-function scatter() {
-  particles.forEach(p => {
-    p.tx = Math.random() * canvas.width;
-    p.ty = Math.random() * canvas.height;
-  });
-}
-scatter();
-
-/* ========== ANIMATION LOOP ========== */
-function animate() {
-  ctx.fillStyle = "rgba(0,0,0,0.25)";
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-  particles.forEach(p => {
-    p.update();
-    p.draw();
-  });
-
-  requestAnimationFrame(animate);
-}
-animate();
-
-/* ========== HAND TRACKING ========== */
-const video = document.getElementById("video");
-
-const hands = new Hands({
-  locateFile: (file) => {
-    // Official stable CDN with version
-    return `https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.11.1/${file}`;
-  },
-  modelComplexity: 0,           // lite model for browser
-  maxNumHands: 1,               // track only one hand
-  minDetectionConfidence: 0.7,
-  minTrackingConfidence: 0.7
-});
-
-
-hands.setOptions({
-  maxNumHands: 1,
-  minDetectionConfidence: 0.7,
-  minTrackingConfidence: 0.7
-});
-
-hands.onResults(results => {
-  if (!results.multiHandLandmarks) return;
-
-  const lm = results.multiHandLandmarks[0];
-
-  const indexUp = lm[8].y < lm[6].y;
-  const middleUp = lm[12].y < lm[10].y;
-  const ringUp = lm[16].y < lm[14].y;
-  const pinkyUp = lm[20].y < lm[18].y;
-
-  if (indexUp && middleUp && ringUp && pinkyUp) {
-    makeHeart();
-  } else if (!indexUp && !middleUp && !ringUp && !pinkyUp) {
-    makeText("I LOVE YOU KHUSHI");
-  } else if (indexUp && !middleUp && !ringUp && !pinkyUp) {
-    scatter();
-  }
-});
-
-/* ========== SHAPES ========== */
-function makeHeart() {
-  let points = [];
-  for (let t = 0; t < Math.PI * 2; t += 0.05) {
-    let x = 16 * Math.pow(Math.sin(t), 3);
-    let y = -(13 * Math.cos(t)
-      - 5 * Math.cos(2*t)
-      - 2 * Math.cos(3*t)
-      - Math.cos(4*t));
-    points.push({
-      x: canvas.width/2 + x * 12,
-      y: canvas.height/2 + y * 12
-    });
-  }
-  assign(points);
-}
-
-function makeText(text) {
-  const temp = document.createElement("canvas");
-  const tctx = temp.getContext("2d");
-  temp.width = canvas.width;
-  temp.height = canvas.height;
-
-  tctx.font = "bold 80px Arial";
-  tctx.fillStyle = "white";
-  tctx.textAlign = "center";
-  tctx.fillText(text, canvas.width/2, canvas.height/2);
-
-  const data = tctx.getImageData(0,0,temp.width,temp.height).data;
-  let points = [];
-
-  for (let y = 0; y < temp.height; y += 6) {
-    for (let x = 0; x < temp.width; x += 6) {
-      if (data[(y*temp.width+x)*4+3] > 150) {
-        points.push({x,y});
+    function initParticles() {
+      for (let i = 0; i < numParticles; i++) {
+        particles.push({
+          x: Math.random() * canvas.width,
+          y: Math.random() * canvas.height,
+          size: Math.random() * 2 + 1,
+          vx: (Math.random() - 0.5) * 1,
+          vy: (Math.random() - 0.5) * 1,
+        });
       }
     }
-  }
-  assign(points);
-}
 
-function assign(points) {
-  particles.forEach((p,i) => {
-    const t = points[i % points.length];
-    p.tx = t.x;
-    p.ty = t.y;
-  });
-}
+    function drawParticles() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.fillStyle = "pink";
+      particles.forEach(p => {
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+        ctx.fill();
+      });
+    }
 
-/* ========== CAMERA START ========== */
-const camera = new Camera(video, {
-  onFrame: async () => {
-    await hands.send({ image: video });
-  },
-  width: 640,
-  height: 480
-});
-camera.start();
+    function updateParticles(gesture = null) {
+      particles.forEach(p => {
+        p.x += p.vx;
+        p.y += p.vy;
 
-</script>
+        if (p.x < 0) p.x = canvas.width;
+        if (p.x > canvas.width) p.x = 0;
+        if (p.y < 0) p.y = canvas.height;
+        if (p.y > canvas.height) p.y = 0;
+      });
+
+      // Gesture effects
+      if (gesture === "open") {
+        // form heart shape
+        const centerX = canvas.width / 2;
+        const centerY = canvas.height / 2;
+        particles.forEach((p, i) => {
+          const angle = (i / numParticles) * Math.PI * 2;
+          p.x = centerX + 150 * Math.sin(angle) * Math.sin(angle) * Math.sin(angle);
+          p.y = centerY - 150 * (0.5 * Math.cos(angle) - 0.5);
+        });
+        // draw "Khushi" text
+        ctx.fillStyle = "red";
+        ctx.font = "60px cursive";
+        ctx.textAlign = "center";
+        ctx.fillText("Khushi", canvas.width / 2, canvas.height / 2 + 10);
+      } else if (gesture === "fist") {
+        // Show "I LOVE YOU"
+        ctx.fillStyle = "red";
+        ctx.font = "70px cursive";
+        ctx.textAlign = "center";
+        ctx.fillText("I LOVE YOU ❤️", canvas.width / 2, canvas.height / 2);
+      }
+      drawParticles();
+    }
+
+    initParticles();
+
+    // MediaPipe Hands initialization
+    const hands = new Hands({
+      locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.11.1/${file}`,
+      modelComplexity: 0,
+      maxNumHands: 1,
+      minDetectionConfidence: 0.7,
+      minTrackingConfidence: 0.7
+    });
+
+    hands.onResults((results) => {
+      let gesture = null;
+
+      if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+        const landmarks = results.multiHandLandmarks[0];
+
+        // Simple gesture detection
+        const thumbTip = landmarks[4];
+        const indexTip = landmarks[8];
+        const middleTip = landmarks[12];
+        const ringTip = landmarks[16];
+        const pinkyTip = landmarks[20];
+
+        const openHand = 
+          thumbTip.y < landmarks[3].y &&
+          indexTip.y < landmarks[6].y &&
+          middleTip.y < landmarks[10].y &&
+          ringTip.y < landmarks[14].y &&
+          pinkyTip.y < landmarks[18].y;
+
+        const fist = 
+          thumbTip.y > landmarks[3].y &&
+          indexTip.y > landmarks[6].y &&
+          middleTip.y > landmarks[10].y &&
+          ringTip.y > landmarks[14].y &&
+          pinkyTip.y > landmarks[18].y;
+
+        if (openHand) gesture = "open";
+        else if (fist) gesture = "fist";
+      }
+
+      updateParticles(gesture);
+    });
+
+    // Camera setup
+    async function startCamera() {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+      video.srcObject = stream;
+      await video.play();
+
+      async function detect() {
+        await hands.send({ image: video });
+        requestAnimationFrame(detect);
+      }
+      detect();
+    }
+
+    startCamera();
+  </script>
 </body>
 </html>
+
+
 
 
