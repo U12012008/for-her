@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <title>For Khushi 💖</title>
   <style>
-    body, html {
+    html, body {
       margin: 0;
       padding: 0;
       overflow: hidden;
@@ -12,8 +12,10 @@
     }
     canvas {
       display: block;
+      width: 100vw;
+      height: 100vh;
     }
-    #video {
+    video {
       display: none;
     }
   </style>
@@ -23,7 +25,6 @@
   <canvas id="canvas"></canvas>
 
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.11.1/hands.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils@0.11.1/drawing_utils.js"></script>
 
   <script>
     const video = document.getElementById("video");
@@ -33,7 +34,7 @@
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
 
-    // Particle system
+    // Particles
     const particles = [];
     const numParticles = 300;
 
@@ -70,9 +71,7 @@
         if (p.y > canvas.height) p.y = 0;
       });
 
-      // Gesture effects
       if (gesture === "open") {
-        // form heart shape
         const centerX = canvas.width / 2;
         const centerY = canvas.height / 2;
         particles.forEach((p, i) => {
@@ -80,24 +79,24 @@
           p.x = centerX + 150 * Math.sin(angle) * Math.sin(angle) * Math.sin(angle);
           p.y = centerY - 150 * (0.5 * Math.cos(angle) - 0.5);
         });
-        // draw "Khushi" text
         ctx.fillStyle = "red";
         ctx.font = "60px cursive";
         ctx.textAlign = "center";
-        ctx.fillText("Khushi", canvas.width / 2, canvas.height / 2 + 10);
+        ctx.fillText("Khushi", centerX, centerY + 10);
       } else if (gesture === "fist") {
-        // Show "I LOVE YOU"
         ctx.fillStyle = "red";
         ctx.font = "70px cursive";
         ctx.textAlign = "center";
         ctx.fillText("I LOVE YOU ❤️", canvas.width / 2, canvas.height / 2);
       }
+
       drawParticles();
     }
 
     initParticles();
+    drawParticles(); // draw initial particles immediately
 
-    // MediaPipe Hands initialization
+    // MediaPipe Hands setup
     const hands = new Hands({
       locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.11.1/${file}`,
       modelComplexity: 0,
@@ -110,28 +109,23 @@
       let gesture = null;
 
       if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
-        const landmarks = results.multiHandLandmarks[0];
+        const l = results.multiHandLandmarks[0];
 
-        // Simple gesture detection
-        const thumbTip = landmarks[4];
-        const indexTip = landmarks[8];
-        const middleTip = landmarks[12];
-        const ringTip = landmarks[16];
-        const pinkyTip = landmarks[20];
+        const thumbTip = l[4], indexTip = l[8], middleTip = l[12], ringTip = l[16], pinkyTip = l[20];
 
-        const openHand = 
-          thumbTip.y < landmarks[3].y &&
-          indexTip.y < landmarks[6].y &&
-          middleTip.y < landmarks[10].y &&
-          ringTip.y < landmarks[14].y &&
-          pinkyTip.y < landmarks[18].y;
+        const openHand =
+          thumbTip.y < l[3].y &&
+          indexTip.y < l[6].y &&
+          middleTip.y < l[10].y &&
+          ringTip.y < l[14].y &&
+          pinkyTip.y < l[18].y;
 
-        const fist = 
-          thumbTip.y > landmarks[3].y &&
-          indexTip.y > landmarks[6].y &&
-          middleTip.y > landmarks[10].y &&
-          ringTip.y > landmarks[14].y &&
-          pinkyTip.y > landmarks[18].y;
+        const fist =
+          thumbTip.y > l[3].y &&
+          indexTip.y > l[6].y &&
+          middleTip.y > l[10].y &&
+          ringTip.y > l[14].y &&
+          pinkyTip.y > l[18].y;
 
         if (openHand) gesture = "open";
         else if (fist) gesture = "fist";
@@ -140,7 +134,7 @@
       updateParticles(gesture);
     });
 
-    // Camera setup
+    // Camera
     async function startCamera() {
       const stream = await navigator.mediaDevices.getUserMedia({ video: true });
       video.srcObject = stream;
@@ -150,6 +144,7 @@
         await hands.send({ image: video });
         requestAnimationFrame(detect);
       }
+
       detect();
     }
 
@@ -157,7 +152,3 @@
   </script>
 </body>
 </html>
-
-
-
-
