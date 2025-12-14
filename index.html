@@ -1,287 +1,167 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <title>For Khushi 💖</title>
-  <style>
-    html, body {
-      margin: 0;
-      padding: 0;
-      overflow: hidden;
-      background: #ffe6f0;
-      height: 100%;
-    }
-    #canvas {
-      display: block;
-      width: 100vw;
-      height: 100vh;
-    }
-    /* hide the video element (we still use it as a source) */
-    video {
-      display: none;
-    }
-  </style>
+<meta charset="UTF-8">
+<title>For Khushi 💖</title>
+<style>
+  html, body {
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    background: #ffe6f0;
+  }
+  canvas {
+    position: absolute;
+    top: 0;
+    left: 0;
+  }
+  video {
+    display: none;
+  }
+</style>
 </head>
 <body>
-  <!-- playsinline & muted help cameras start on mobile/safari -->
-  <video id="video" autoplay playsinline muted></video>
-  <canvas id="canvas"></canvas>
 
-  <!-- Mediapipe + helpers (drawing_utils + camera_utils) -->
-  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.11.1/hands.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils@0.4.164/drawing_utils.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils@0.4.164/camera_utils.js"></script>
+<video id="video" autoplay playsinline muted></video>
+<canvas id="canvas"></canvas>
 
-  <script>
-    const video = document.getElementById("video");
-    const canvas = document.getElementById("canvas");
-    const ctx = canvas.getContext("2d");
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.11.1/hands.js"></script>
 
-    function resizeCanvas() {
-      canvas.width = window.innerWidth;
-      canvas.height = window.innerHeight;
+<script>
+/* ================= BASIC SETUP ================= */
+const video = document.getElementById("video");
+const canvas = document.getElementById("canvas");
+const ctx = canvas.getContext("2d");
+
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
+
+/* ================= PARTICLES ================= */
+const particles = [];
+const COUNT = 350;
+
+for (let i = 0; i < COUNT; i++) {
+  particles.push({
+    x: Math.random() * canvas.width,
+    y: Math.random() * canvas.height,
+    vx: (Math.random() - 0.5) * 1.5,
+    vy: (Math.random() - 0.5) * 1.5,
+    r: Math.random() * 2 + 1
+  });
+}
+
+/* ================= MEDIAPIPE ================= */
+const hands = new Hands({
+  locateFile: (file) =>
+    `https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.11.1/${file}`
+});
+
+hands.setOptions({
+  maxNumHands: 1,
+  modelComplexity: 0, // 🔥 LITE MODEL (IMPORTANT)
+  minDetectionConfidence: 0.6,
+  minTrackingConfidence: 0.6
+});
+
+let gesture = null;
+
+hands.onResults((res) => {
+  if (!res.multiHandLandmarks) {
+    gesture = null;
+    return;
+  }
+
+  const l = res.multiHandLandmarks[0];
+
+  const open =
+    l[8].y < l[6].y &&
+    l[12].y < l[10].y &&
+    l[16].y < l[14].y &&
+    l[20].y < l[18].y;
+
+  const fist =
+    l[8].y > l[6].y &&
+    l[12].y > l[10].y &&
+    l[16].y > l[14].y &&
+    l[20].y > l[18].y;
+
+  const point =
+    l[8].y < l[6].y &&
+    l[12].y > l[10].y &&
+    l[16].y > l[14].y &&
+    l[20].y > l[18].y;
+
+  if (open) gesture = "open";
+  else if (fist) gesture = "fist";
+  else if (point) gesture = "point";
+  else gesture = null;
+});
+
+/* ================= CAMERA ================= */
+async function startCamera() {
+  const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+  video.srcObject = stream;
+  await video.play();
+
+  async function loop() {
+    await hands.send({ image: video });
+    requestAnimationFrame(loop);
+  }
+  loop();
+}
+startCamera();
+
+/* ================= ANIMATION ================= */
+function animate() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  particles.forEach((p, i) => {
+    if (gesture === "open") {
+      const t = i / COUNT * Math.PI * 2;
+      p.x = canvas.width / 2 + 120 * Math.sin(t) ** 3;
+      p.y = canvas.height / 2 -
+            80 * (Math.cos(t) - Math.cos(2*t)/2);
     }
-    window.addEventListener("resize", resizeCanvas);
-    resizeCanvas();
-
-    // Particles
-    const particles = [];
-    const numParticles = 300;
-    function initParticles() {
-      particles.length = 0;
-      for (let i = 0; i < numParticles; i++) {
-        particles.push({
-          x: Math.random() * canvas.width,
-          y: Math.random() * canvas.height,
-          size: Math.random() * 2 + 1,
-          vx: (Math.random() - 0.5) * 1,
-          vy: (Math.random() - 0.5) * 1,
-        });
-      }
+    else if (gesture === "fist") {
+      p.x += (canvas.width/2 - p.x) * 0.05;
+      p.y += (canvas.height/2 - p.y) * 0.05;
     }
-    initParticles();
-
-    function drawParticles() {
-      // particles are drawn as filled circles (pink)
-      ctx.fillStyle = "pink";
-      particles.forEach(p => {
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
-        ctx.fill();
-      });
-    }
-
-    function updateParticlesPosition(gesture = null) {
-      // move particles each frame
-      particles.forEach((p, i) => {
-        p.x += p.vx;
-        p.y += p.vy;
-
-        if (p.x < 0) p.x = canvas.width;
-        if (p.x > canvas.width) p.x = 0;
-        if (p.y < 0) p.y = canvas.height;
-        if (p.y > canvas.height) p.y = 0;
-      });
-
-      // gesture-driven arrangements
-      if (gesture === "open") {
-        const centerX = canvas.width / 2;
-        const centerY = canvas.height / 2;
-        particles.forEach((p, i) => {
-          const angle = (i / numParticles) * Math.PI * 2;
-          // nicer heart-ish distribution (kept the original idea)
-          p.x = centerX + 150 * Math.sin(angle) * Math.sin(angle) * Math.sin(angle);
-          p.y = centerY - 150 * (0.5 * Math.cos(angle) - 0.5);
-        });
-      } else if (gesture === "fist") {
-        // compress towards center
-        particles.forEach((p) => {
-          p.vx *= 0.9;
-          p.vy *= 0.9;
-        });
-      }
-    }
-
-    // a continuous animation loop: updates positions and draws both particles and the debug landmarks
-    let lastResults = null;
-    let currentGesture = null;
-
-    function animate() {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-      updateParticlesPosition(currentGesture);
-      drawParticles();
-
-      // If mediapipe provided landmarks, draw them on top (for debugging/visual feedback)
-      if (lastResults && lastResults.multiHandLandmarks && lastResults.multiHandLandmarks.length > 0) {
-        // draw landmarks normalized to canvas
-        const landmarks = lastResults.multiHandLandmarks[0];
-        // draw connectors & landmarks using drawing_utils (provided by mediapipe)
-        // convert normalized coordinates (x: 0..1 left->right, y: 0..1 top->bottom)
-        // We'll scale to canvas size and flip horizontally for a mirror-like view (camera is usually mirrored)
-        ctx.save();
-        ctx.lineWidth = 2;
-        // draw connections
-        if (window.drawConnectors) {
-          // drawing_utils helper uses its own canvas context shape, but the helper expects the same coordinate system as MediaPipe.
-          // We'll call the helpers directly if they exist.
-          // Use a tiny wrapper to provide scaled points:
-          const scaled = landmarks.map(p => ({ x: p.x * canvas.width, y: p.y * canvas.height }));
-          try {
-            // draw connectors uses normalized points when passed the original landmarks and a canvas context,
-            // but some versions expect different calls. We'll use drawing_utils provided helpers which accept ctx.
-            // However to keep compatibility we will draw simple circles and lines ourselves as fallback.
-            // Try drawing connectors via drawing_utils if present:
-            if (window.drawConnectors && window.HAND_CONNECTIONS) {
-              // The drawing utilities (when loaded from CDN) attach drawConnectors/drawLandmarks to window.
-              drawConnectors(ctx, landmarks, HAND_CONNECTIONS, { color: '#8ef', lineWidth: 2 });
-              drawLandmarks(ctx, landmarks, { color: '#f55', lineWidth: 1 });
-            } else {
-              // fallback simple drawing
-              ctx.strokeStyle = "#8ef";
-              for (const conn of HAND_CONNECTIONS) {
-                const a = scaled[conn[0]];
-                const b = scaled[conn[1]];
-                if (a && b) {
-                  ctx.beginPath();
-                  ctx.moveTo(a.x, a.y);
-                  ctx.lineTo(b.x, b.y);
-                  ctx.stroke();
-                }
-              }
-              ctx.fillStyle = "#f55";
-              scaled.forEach(p => {
-                ctx.beginPath();
-                ctx.arc(p.x, p.y, 4, 0, Math.PI * 2);
-                ctx.fill();
-              });
-            }
-          } catch (e) {
-            // if drawing_utils behavior changes across versions, don't break animation
-            // fallback to simple points
-            ctx.fillStyle = "#f55";
-            landmarks.forEach(p => {
-              ctx.beginPath();
-              ctx.arc(p.x * canvas.width, p.y * canvas.height, 4, 0, Math.PI * 2);
-              ctx.fill();
-            });
-          }
-        }
-        ctx.restore();
-      }
-
-      // overlay text for gestures
-      if (currentGesture === "open") {
-        ctx.fillStyle = "red";
-        ctx.font = "60px cursive";
-        ctx.textAlign = "center";
-        ctx.fillText("Khushi", canvas.width / 2, canvas.height / 2 + 10);
-      } else if (currentGesture === "fist") {
-        ctx.fillStyle = "red";
-        ctx.font = "70px cursive";
-        ctx.textAlign = "center";
-        ctx.fillText("I LOVE YOU ❤️", canvas.width / 2, canvas.height / 2);
-      }
-
-      requestAnimationFrame(animate);
+    else {
+      p.x += p.vx;
+      p.y += p.vy;
     }
 
-    // Gesture detection helper - returns "open", "fist", or null
-    function detectGestureFromLandmarks(results) {
-      if (!results || !results.multiHandLandmarks || results.multiHandLandmarks.length === 0) return null;
-      const l = results.multiHandLandmarks[0];
+    if (p.x < 0) p.x = canvas.width;
+    if (p.x > canvas.width) p.x = 0;
+    if (p.y < 0) p.y = canvas.height;
+    if (p.y > canvas.height) p.y = 0;
 
-      // landmarks indices:
-      // thumb tip = 4, thumb ip = 3
-      // index tip = 8, index pip = 6
-      // middle tip = 12, middle pip = 10
-      // ring tip = 16, ring pip = 14
-      // pinky tip = 20, pinky pip = 18
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+    ctx.fillStyle = "hotpink";
+    ctx.fill();
+  });
 
-      const thumbTip = l[4], thumbIP = l[3];
-      const indexTip = l[8], indexPIP = l[6];
-      const middleTip = l[12], middlePIP = l[10];
-      const ringTip = l[16], ringPIP = l[14];
-      const pinkyTip = l[20], pinkyPIP = l[18];
+  if (gesture === "open") {
+    ctx.fillStyle = "red";
+    ctx.font = "50px cursive";
+    ctx.textAlign = "center";
+    ctx.fillText("Khushi 💖", canvas.width/2, canvas.height/2 + 100);
+  }
 
-      // y increases downward in MediaPipe normalized coords.
-      const openHand =
-        thumbTip.y < thumbIP.y &&
-        indexTip.y < indexPIP.y &&
-        middleTip.y < middlePIP.y &&
-        ringTip.y < ringPIP.y &&
-        pinkyTip.y < pinkyPIP.y;
+  if (gesture === "fist") {
+    ctx.fillStyle = "red";
+    ctx.font = "60px cursive";
+    ctx.textAlign = "center";
+    ctx.fillText("I LOVE YOU ❤️", canvas.width/2, canvas.height/2);
+  }
 
-      const fist =
-        thumbTip.y > thumbIP.y &&
-        indexTip.y > indexPIP.y &&
-        middleTip.y > middlePIP.y &&
-        ringTip.y > ringPIP.y &&
-        pinkyTip.y > pinkyPIP.y;
-
-      if (openHand) return "open";
-      if (fist) return "fist";
-      return null;
-    }
-
-    // Setup MediaPipe Hands
-    const hands = new Hands({
-      locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.11.1/${file}`
-    });
-
-    // setOptions is more reliable across versions than passing in constructor options
-    hands.setOptions({
-      maxNumHands: 1,
-      modelComplexity: 1,
-      minDetectionConfidence: 0.7,
-      minTrackingConfidence: 0.7
-    });
-
-    // called every time MediaPipe has a result
-    hands.onResults((results) => {
-      lastResults = results;                  // used for drawing landmarks
-      currentGesture = detectGestureFromLandmarks(results); // used by animation loop
-      // very small debug log (open the console to see)
-      // console.log("gesture:", currentGesture, results);
-    });
-
-    // Start camera using MediaPipe's Camera helper (handles requestAnimationFrame + proper video frames)
-    try {
-      const camera = new Camera(video, {
-        onFrame: async () => {
-          await hands.send({ image: video });
-        },
-        width: 1280,
-        height: 720
-      });
-      camera.start();
-    } catch (err) {
-      // fallback: if Camera helper fails, try a direct getUserMedia approach
-      console.warn("Camera helper failed, falling back to getUserMedia:", err);
-      (async function fallbackCamera() {
-        try {
-          const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-          video.srcObject = stream;
-          await video.play();
-          async function step() {
-            await hands.send({ image: video });
-            requestAnimationFrame(step);
-          }
-          step();
-        } catch (e) {
-          console.error("Camera start failed:", e);
-          ctx.clearRect(0,0,canvas.width,canvas.height);
-          ctx.fillStyle = "red";
-          ctx.font = "20px sans-serif";
-          ctx.textAlign = "center";
-          ctx.fillText("Camera permission required. Please allow camera access and reload.", canvas.width/2, canvas.height/2);
-        }
-      })();
-    }
-
-    // start the visual animation loop
-    animate();
-  </script>
+  requestAnimationFrame(animate);
+}
+animate();
+</script>
 </body>
 </html>
+
+
 
